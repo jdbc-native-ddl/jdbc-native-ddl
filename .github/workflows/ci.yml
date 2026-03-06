@@ -20,8 +20,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and test
+      - name: Build, test, and check vulnerabilities
         run: mvn clean verify
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload test results
         if: always()
