@@ -175,6 +175,7 @@
                     </archive>
                 </configuration>
             </plugin>
+            <!-- TODO: re-enable once NVD API key is configured
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -192,6 +193,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
         </plugins>
     </build>
 
