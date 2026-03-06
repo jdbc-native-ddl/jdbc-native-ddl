@@ -182,6 +182,7 @@
                 <configuration>
                     <failBuildOnCVSS>7</failBuildOnCVSS>
                     <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <ossIndexEnabled>false</ossIndexEnabled>
                 </configuration>
                 <executions>
                     <execution>
