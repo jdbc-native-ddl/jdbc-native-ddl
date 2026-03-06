@@ -29,6 +29,13 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
+      - name: Cache NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-db-${{ github.run_id }}
+          restore-keys: nvd-db-
+
       - name: Build, test, and check vulnerabilities
         run: mvn clean verify
         env:
