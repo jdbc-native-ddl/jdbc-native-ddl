@@ -6,7 +6,7 @@
 
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 
     <name>JDBC Native DDL</name>
     <description>Extract DDL from live databases using native catalog views and built-in functions via JDBC</description>
