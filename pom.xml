@@ -6,7 +6,7 @@
 
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.3</version>
+    <version>${revision}</version>
 
     <name>JDBC Native DDL</name>
     <description>Extract DDL from live databases using native catalog views and built-in functions via JDBC</description>
@@ -33,6 +33,7 @@
     </scm>
 
     <properties>
+        <revision>0.1.3-SNAPSHOT</revision>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -142,6 +143,31 @@
                 <configuration>
                     <redirectTestOutputToFile>false</redirectTestOutputToFile>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>ossrh</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
