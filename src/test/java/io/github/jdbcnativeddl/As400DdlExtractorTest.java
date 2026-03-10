@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests the AS/400 DDL extractor against mock QSYS2 catalog views in H2.
  * This validates SQL correctness and DDL generation logic without a real IBM i system.
  */
-class As400DdlExtractorTest {
+class As400DdlExtractorTest extends AbstractDdlExtractorTest {
 
     private static String ddl;
 
@@ -116,7 +116,8 @@ class As400DdlExtractorTest {
                     INDEX_NAME VARCHAR(128),
                     COLUMN_NAME VARCHAR(128),
                     ORDINAL_POSITION INT,
-                    ORDERING CHAR(1)
+                    ORDERING CHAR(1),
+                    KEY_EXPRESSION VARCHAR(2000)
                 )""");
 
             stmt.execute("""
@@ -198,16 +199,26 @@ class As400DdlExtractorTest {
 
             // Index
             stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
-            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'LAST_NAME', 1, 'A')");
-            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'FIRST_NAME', 2, 'A')");
+            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'LAST_NAME', 1, 'A', NULL)");
+            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'FIRST_NAME', 2, 'A', NULL)");
+
+            // Expression-based index
+            stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'IXCOL00001', 1, 'A', 'LOWER(FIRST_NAME)')");
+            stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'LAST_NAME', 2, 'A', NULL)");
 
             // View
             stmt.execute("""
                 INSERT INTO QSYS2.SYSVIEWS VALUES
                 ('TESTLIB', 'ACTIVE_EMPLOYEES',
-                 'CREATE VIEW TESTLIB.ACTIVE_EMPLOYEES AS SELECT ID, FIRST_NAME, LAST_NAME, EMAIL FROM TESTLIB.EMPLOYEES')
+                 'SELECT ID, FIRST_NAME, LAST_NAME, EMAIL FROM TESTLIB.EMPLOYEES')
                 """);
         }
+    }
+
+    @Test
+    void commonDdl() {
+        assertCommonDdl(ddl);
     }
 
     @Test
@@ -270,6 +281,13 @@ class As400DdlExtractorTest {
     }
 
     @Test
+    void expressionBasedIndex() {
+        assertThat(ddl).contains("IDX_EMP_LOWER_NAME");
+        assertThat(ddl).contains("LOWER(FIRST_NAME)");
+        assertThat(ddl).doesNotContain("IXCOL00001");
+    }
+
+    @Test
     void sequence() {
         assertThat(ddl.toUpperCase()).contains("EMP_SEQ");
         assertThat(ddl.toUpperCase()).contains("CREATE SEQUENCE");
@@ -277,6 +295,7 @@ class As400DdlExtractorTest {
 
     @Test
     void view() {
+        assertThat(ddl.toUpperCase()).contains("CREATE VIEW");
         assertThat(ddl.toUpperCase()).contains("ACTIVE_EMPLOYEES");
     }
 }

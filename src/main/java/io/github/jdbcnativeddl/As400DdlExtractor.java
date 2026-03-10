@@ -287,7 +287,7 @@ public class As400DdlExtractor implements DdlExtractor {
     private void extractIndexes(Connection connection, String schema, StringBuilder ddl) throws SQLException {
         String sql = """
                 SELECT i.INDEX_NAME, i.TABLE_NAME, i.IS_UNIQUE,
-                       k.COLUMN_NAME, k.ORDERING
+                       COALESCE(CAST(k.KEY_EXPRESSION AS VARCHAR(2000)), k.COLUMN_NAME) AS COLUMN_NAME, k.ORDERING
                 FROM QSYS2.SYSINDEXES i
                 JOIN QSYS2.SYSKEYS k ON i.INDEX_SCHEMA = k.INDEX_SCHEMA AND i.INDEX_NAME = k.INDEX_NAME
                 WHERE i.INDEX_SCHEMA = ?
@@ -351,9 +351,14 @@ public class As400DdlExtractor implements DdlExtractor {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    String name = rs.getString("TABLE_NAME");
                     String definition = rs.getString("VIEW_DEFINITION");
                     if (definition != null) {
-                        ddl.append(definition.trim()).append(";\n\n");
+                        definition = definition.trim();
+                        if (!definition.toUpperCase().startsWith("CREATE")) {
+                            ddl.append("CREATE VIEW ").append(name).append(" AS\n");
+                        }
+                        ddl.append(definition).append(";\n\n");
                     }
                 }
             }
