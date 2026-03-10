@@ -7,9 +7,8 @@ Extract DDL from live databases using each database's native catalog views and b
 ## Quick Start
 
 ```java
-DdlExtractor extractor = Ddl.forJdbcUrl(jdbcUrl);
 try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
-    String ddl = extractor.extractDdl(conn, "MY_SCHEMA");
+    String ddl = Ddl.extract(conn, "MY_SCHEMA");
 }
 ```
 
@@ -17,23 +16,25 @@ try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
 
 ```java
 // To a String
-String ddl = extractor.extractDdl(conn, "MY_SCHEMA");
+String ddl = Ddl.extract(conn, "MY_SCHEMA");
 
 // To a Writer
-extractor.extractDdl(conn, "MY_SCHEMA", new PrintWriter(System.out));
+Ddl.extract(conn, "MY_SCHEMA", new PrintWriter(System.out));
 
 // To a file
-extractor.extractDdl(conn, "MY_SCHEMA", Path.of("schema.sql"));
+Ddl.extract(conn, "MY_SCHEMA", Path.of("schema.sql"));
 ```
 
 ## Spring Boot
 
 ```java
 @Bean
-public DdlExtractor ddlExtractor(DataSource dataSource) throws SQLException {
-    try (Connection conn = dataSource.getConnection()) {
-        return Ddl.forConnection(conn);
-    }
+CommandLineRunner extractDdl(DataSource dataSource) {
+    return args -> {
+        try (Connection conn = dataSource.getConnection()) {
+            Ddl.extract(conn, "MY_SCHEMA", Path.of("schema.sql"));
+        }
+    };
 }
 ```
 
@@ -44,7 +45,8 @@ public DdlExtractor ddlExtractor(DataSource dataSource) throws SQLException {
 | **PostgreSQL** | `pg_catalog` queries | Expression indexes, partial indexes, partitioning, enum/domain types, generated columns, materialized views |
 | **Oracle** | `DBMS_METADATA.GET_DDL` | Partitioning, function-based indexes, materialized views, sequences |
 | **SQL Server** | `sys.*` catalog views | Filtered indexes, included columns, computed columns, temporal tables, columnstore indexes |
-| **DB2** | `SYSCAT.*` catalog views | Identity columns, range partitioning, tablespaces, sequences |
+| **DB2 LUW** | `SYSCAT.*` catalog views | Identity columns, range partitioning, tablespaces, sequences |
+| **IBM i (AS/400)** | `QSYS2.*` catalog views | Identity columns, sequences, check constraints, views |
 
 ## Maven
 
@@ -52,14 +54,14 @@ public DdlExtractor ddlExtractor(DataSource dataSource) throws SQLException {
 <dependency>
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 ```
 
 ## Gradle
 
 ```groovy
-implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.0'
+implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.2'
 ```
 
 JDBC drivers are **not** included -- provide them in your application's classpath.

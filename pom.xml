@@ -6,7 +6,7 @@
 
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
 
     <name>JDBC Native DDL</name>
     <description>Extract DDL from live databases using native catalog views and built-in functions via JDBC</description>
@@ -59,6 +59,12 @@
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>3.25.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
             <scope>test</scope>
         </dependency>
         <dependency>

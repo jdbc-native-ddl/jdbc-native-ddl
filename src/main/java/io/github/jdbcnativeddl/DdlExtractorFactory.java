@@ -8,7 +8,8 @@ class DdlExtractorFactory {
             new PostgresDdlExtractor(),
             new OracleDdlExtractor(),
             new MssqlDdlExtractor(),
-            new Db2DdlExtractor()
+            new Db2DdlExtractor(),
+            new As400DdlExtractor()
     );
 
     static DdlExtractor forJdbcUrl(String jdbcUrl) {

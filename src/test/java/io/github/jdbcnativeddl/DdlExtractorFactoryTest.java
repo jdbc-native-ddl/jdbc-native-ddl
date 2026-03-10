@@ -32,6 +32,12 @@ class DdlExtractorFactoryTest {
     }
 
     @Test
+    void detectsAs400() {
+        DdlExtractor extractor = Ddl.forJdbcUrl("jdbc:as400://myhost");
+        assertThat(extractor).isInstanceOf(As400DdlExtractor.class);
+    }
+
+    @Test
     void throwsForUnsupportedUrl() {
         assertThatThrownBy(() -> Ddl.forJdbcUrl("jdbc:mysql://localhost/mydb"))
                 .isInstanceOf(IllegalArgumentException.class)
