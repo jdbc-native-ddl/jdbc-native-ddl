@@ -169,4 +169,15 @@ class MssqlDdlExtractorTest extends AbstractDdlExtractorTest {
     void identityColumn() {
         assertThat(ddl.toUpperCase()).contains("IDENTITY");
     }
+
+    @Test
+    void roundtrip() throws Exception {
+        try (Connection conn = DriverManager.getConnection(
+                mssql.getJdbcUrl(), mssql.getUsername(), mssql.getPassword())) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("CREATE SCHEMA ddl_roundtrip");
+            }
+            assertRoundtrip(conn, new MssqlDdlExtractor(), "ddl_test", "ddl_roundtrip", ddl);
+        }
+    }
 }

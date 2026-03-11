@@ -223,17 +223,17 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
 
     @Test
     void tables() {
-        assertThat(ddl.toUpperCase()).contains("CREATE TABLE DEPARTMENTS");
-        assertThat(ddl.toUpperCase()).contains("CREATE TABLE EMPLOYEES");
+        assertThat(ddl).contains("CREATE TABLE \"DEPARTMENTS\"");
+        assertThat(ddl).contains("CREATE TABLE \"EMPLOYEES\"");
     }
 
     @Test
     void columns() {
-        assertThat(ddl.toUpperCase()).contains("FIRST_NAME");
-        assertThat(ddl.toUpperCase()).contains("LAST_NAME");
-        assertThat(ddl.toUpperCase()).contains("EMAIL");
-        assertThat(ddl.toUpperCase()).contains("SALARY");
-        assertThat(ddl.toUpperCase()).contains("DEPARTMENT_ID");
+        assertThat(ddl).contains("\"FIRST_NAME\"");
+        assertThat(ddl).contains("\"LAST_NAME\"");
+        assertThat(ddl).contains("\"EMAIL\"");
+        assertThat(ddl).contains("\"SALARY\"");
+        assertThat(ddl).contains("\"DEPARTMENT_ID\"");
     }
 
     @Test
@@ -250,52 +250,51 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
     @Test
     void primaryKey() {
         assertThat(ddl.toUpperCase()).contains("PRIMARY KEY");
-        assertThat(ddl).contains("PK_EMPLOYEES");
-        assertThat(ddl).contains("PK_DEPARTMENTS");
+        assertThat(ddl).contains("\"PK_EMPLOYEES\"");
+        assertThat(ddl).contains("\"PK_DEPARTMENTS\"");
     }
 
     @Test
     void uniqueConstraint() {
-        assertThat(ddl).contains("UQ_EMP_EMAIL");
+        assertThat(ddl).contains("\"UQ_EMP_EMAIL\"");
         assertThat(ddl.toUpperCase()).contains("UNIQUE");
     }
 
     @Test
     void checkConstraint() {
-        assertThat(ddl).contains("CHK_SALARY");
+        assertThat(ddl).contains("\"CHK_SALARY\"");
         assertThat(ddl.toUpperCase()).contains("CHECK");
         assertThat(ddl.toUpperCase()).contains("SALARY > 0");
     }
 
     @Test
     void foreignKey() {
-        assertThat(ddl).contains("FK_DEPT");
+        assertThat(ddl).contains("\"FK_DEPT\"");
         assertThat(ddl.toUpperCase()).contains("FOREIGN KEY");
-        assertThat(ddl.toUpperCase()).contains("REFERENCES DEPARTMENTS");
+        assertThat(ddl).contains("REFERENCES \"DEPARTMENTS\"");
     }
 
     @Test
     void index() {
-        assertThat(ddl).contains("IDX_EMP_NAME");
+        assertThat(ddl).contains("\"IDX_EMP_NAME\"");
         assertThat(ddl.toUpperCase()).contains("CREATE INDEX");
     }
 
     @Test
     void expressionBasedIndex() {
-        assertThat(ddl).contains("IDX_EMP_LOWER_NAME");
+        assertThat(ddl).contains("\"IDX_EMP_LOWER_NAME\"");
         assertThat(ddl).contains("LOWER(FIRST_NAME)");
         assertThat(ddl).doesNotContain("IXCOL00001");
     }
 
     @Test
     void sequence() {
-        assertThat(ddl.toUpperCase()).contains("EMP_SEQ");
+        assertThat(ddl).contains("\"EMP_SEQ\"");
         assertThat(ddl.toUpperCase()).contains("CREATE SEQUENCE");
     }
 
     @Test
     void view() {
-        assertThat(ddl.toUpperCase()).contains("CREATE VIEW");
-        assertThat(ddl.toUpperCase()).contains("ACTIVE_EMPLOYEES");
+        assertThat(ddl).contains("CREATE VIEW \"ACTIVE_EMPLOYEES\"");
     }
 }

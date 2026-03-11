@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/jdbc-native-ddl/jdbc-native-ddl/actions/workflows/ci.yml/badge.svg)](https://github.com/jdbc-native-ddl/jdbc-native-ddl/actions/workflows/ci.yml)
 
-Extract DDL from live databases using each database's native catalog views and built-in functions via JDBC. Produces the most accurate DDL possible, including vendor-specific features like partitioning, expression indexes, temporal tables, and more.
+Extract DDL from live databases using each database's native catalog views and built-in functions via JDBC.
+Produces the most accurate DDL possible, including vendor-specific features like partitioning, expression indexes, 
+temporal tables, and more. 100% Java, No dependencies (okay, just one: slf4j-api).
 
 ## Quick Start
 
@@ -48,20 +50,26 @@ CommandLineRunner extractDdl(DataSource dataSource) {
 | **DB2 LUW** | `SYSCAT.*` catalog views | Identity columns, range partitioning, tablespaces, sequences |
 | **IBM i (AS/400)** | `QSYS2.*` catalog views | Identity columns, sequences, check constraints, views |
 
+## Identifier Quoting and Casing
+
+All identifiers (table names, column names, constraints, etc.) are emitted with double quotes to ensure special characters like dashes are handled correctly.
+
+The casing of identifiers reflects what the database catalog actually stores. Most databases fold unquoted identifiers to a canonical case: Oracle, DB2, and AS/400 fold to uppercase, while PostgreSQL folds to lowercase. For example, `CREATE TABLE MyTable` in PostgreSQL is stored as `mytable` and will be extracted as `"mytable"`. This is not a bug -- it is how SQL identifier resolution works.
+
 ## Maven
 
 ```xml
 <dependency>
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
 </dependency>
 ```
 
 ## Gradle
 
 ```groovy
-implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.2'
+implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.3'
 ```
 
 JDBC drivers are **not** included -- provide them in your application's classpath.

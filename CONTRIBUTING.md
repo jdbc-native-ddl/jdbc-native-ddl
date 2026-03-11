@@ -35,7 +35,8 @@ See the "Adding a New Database" section in the [README](README.md). In short:
 1. Implement `DdlExtractor` using the database's native catalog views
 2. Register it in `DdlExtractorFactory`
 3. Add integration tests extending `AbstractDdlExtractorTest`
-4. Add Testcontainers + JDBC driver dependencies to `pom.xml` (test scope)
+4. Include a **roundtrip test**: extract DDL, execute it in a fresh schema, then verify the resulting structure matches the original. See existing `roundtrip()` tests for examples.
+5. Add Testcontainers + JDBC driver dependencies to `pom.xml` (test scope)
 
 ## Code Style
 
