@@ -65,4 +65,12 @@ public interface DdlExtractor {
             extractDdl(connection, schema, w);
         }
     }
+
+    /**
+     * Double-quotes a SQL identifier so that special characters (dashes, spaces, reserved words)
+     * are handled correctly. Any embedded double-quotes are escaped by doubling them.
+     */
+    static String quoteId(String identifier) {
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
+    }
 }

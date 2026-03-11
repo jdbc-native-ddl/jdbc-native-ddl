@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -118,5 +121,50 @@ class Db2DdlExtractorTest extends AbstractDdlExtractorTest {
     @Test
     void sequence() {
         assertThat(ddl.toUpperCase()).contains("EMP_SEQ");
+    }
+
+    @Override
+    protected SchemaObjects querySchemaObjects(Connection connection, String schema) throws SQLException {
+        SchemaObjects objects = new SchemaObjects();
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA = ? AND TYPE = 'T' ORDER BY TABNAME")) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    objects.tables.add(rs.getString(1).toUpperCase());
+                }
+            }
+        }
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT VIEWNAME FROM SYSCAT.VIEWS WHERE VIEWSCHEMA = ? AND VIEWNAME NOT LIKE 'SYS%' ORDER BY VIEWNAME")) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    objects.views.add(rs.getString(1).toUpperCase());
+                }
+            }
+        }
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT COUNT(*) FROM SYSCAT.COLUMNS WHERE TABSCHEMA = ?")) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    objects.columnCount = rs.getInt(1);
+                }
+            }
+        }
+        return objects;
+    }
+
+    @Test
+    void roundtrip() throws Exception {
+        try (Connection conn = DriverManager.getConnection(
+                db2.getJdbcUrl(), db2.getUsername(), db2.getPassword())) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("CREATE SCHEMA DDL_ROUNDTRIP");
+                s.execute("SET CURRENT SCHEMA = DDL_ROUNDTRIP");
+            }
+            assertRoundtrip(conn, new Db2DdlExtractor(), "DDL_TEST", "DDL_ROUNDTRIP", ddl);
+        }
     }
 }

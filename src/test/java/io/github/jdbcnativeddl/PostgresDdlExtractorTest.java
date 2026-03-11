@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,5 +100,17 @@ class PostgresDdlExtractorTest extends AbstractDdlExtractorTest {
     void foreignKeyConstraint() {
         assertThat(ddl).containsIgnoringCase("fk_dept");
         assertThat(ddl.toUpperCase()).contains("FOREIGN KEY");
+    }
+
+    @Test
+    void roundtrip() throws Exception {
+        try (Connection conn = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("CREATE SCHEMA ddl_roundtrip");
+                s.execute("SET search_path TO ddl_roundtrip");
+            }
+            assertRoundtrip(conn, new PostgresDdlExtractor(), "ddl_test", "ddl_roundtrip", ddl);
+        }
     }
 }

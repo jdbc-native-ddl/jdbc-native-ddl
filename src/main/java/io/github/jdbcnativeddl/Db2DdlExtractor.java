@@ -275,10 +275,10 @@ public class Db2DdlExtractor implements DdlExtractor {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    String checkText = rs.getString("TEXT").trim();
                     ddl.append("ALTER TABLE ").append(rs.getString("TABNAME"))
                             .append(" ADD CONSTRAINT ").append(rs.getString("CONSTNAME").trim())
-                            .append(" CHECK ").append(rs.getString("TEXT").trim())
-                            .append(";\n\n");
+                            .append(" CHECK (").append(checkText).append(");\n\n");
                 }
             }
         }

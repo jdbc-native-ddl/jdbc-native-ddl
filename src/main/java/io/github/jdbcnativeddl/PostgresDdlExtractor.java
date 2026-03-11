@@ -121,6 +121,7 @@ public class PostgresDdlExtractor implements DdlExtractor {
                 JOIN pg_namespace n ON c.relnamespace = n.oid
                 WHERE n.nspname = ? AND c.relkind IN ('r', 'p')
                   AND c.relname NOT LIKE 'pg_%'
+                  AND NOT EXISTS (SELECT 1 FROM pg_inherits i WHERE i.inhrelid = c.oid)
                 ORDER BY c.relname
                 """;
         List<String[]> tables = new ArrayList<>();

@@ -7,6 +7,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.github.jdbcnativeddl.DdlExtractor.quoteId;
+
 /** IBM i (AS/400) DDL extractor using {@code QSYS2.*} catalog views. */
 public class As400DdlExtractor implements DdlExtractor {
 
@@ -43,7 +45,7 @@ public class As400DdlExtractor implements DdlExtractor {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    ddl.append("CREATE SEQUENCE ").append(rs.getString("SEQUENCE_NAME"))
+                    ddl.append("CREATE SEQUENCE ").append(quoteId(rs.getString("SEQUENCE_NAME")))
                             .append(" AS ").append(rs.getString("DATA_TYPE").trim())
                             .append(" START WITH ").append(rs.getLong("START"))
                             .append(" INCREMENT BY ").append(rs.getLong("INCREMENT"))
@@ -82,7 +84,7 @@ public class As400DdlExtractor implements DdlExtractor {
         }
 
         for (String tableName : tables) {
-            ddl.append("CREATE TABLE ").append(tableName).append(" (\n");
+            ddl.append("CREATE TABLE ").append(quoteId(tableName)).append(" (\n");
             extractColumns(connection, schema, tableName, ddl);
             extractPrimaryKey(connection, schema, tableName, ddl);
             extractUniqueConstraints(connection, schema, tableName, ddl);
@@ -112,7 +114,7 @@ public class As400DdlExtractor implements DdlExtractor {
                     int length = rs.getInt("LENGTH");
                     int scale = rs.getInt("NUMERIC_SCALE");
 
-                    ddl.append("    ").append(colName).append(" ").append(formatType(dataType, length, scale));
+                    ddl.append("    ").append(quoteId(colName)).append(" ").append(formatType(dataType, length, scale));
 
                     String isIdentity = rs.getString("IS_IDENTITY");
                     if ("YES".equalsIgnoreCase(isIdentity)) {
@@ -165,12 +167,12 @@ public class As400DdlExtractor implements DdlExtractor {
                     if (constraintName == null) {
                         constraintName = rs.getString("CONSTRAINT_NAME").trim();
                     }
-                    columns.add(rs.getString("COLUMN_NAME"));
+                    columns.add(quoteId(rs.getString("COLUMN_NAME")));
                 }
             }
         }
         if (constraintName != null) {
-            ddl.append(",\n    CONSTRAINT ").append(constraintName)
+            ddl.append(",\n    CONSTRAINT ").append(quoteId(constraintName))
                     .append(" PRIMARY KEY (").append(String.join(", ", columns)).append(")");
         }
     }
@@ -194,17 +196,17 @@ public class As400DdlExtractor implements DdlExtractor {
                 while (rs.next()) {
                     String name = rs.getString("CONSTRAINT_NAME").trim();
                     if (currentConstraint != null && !currentConstraint.equals(name)) {
-                        ddl.append(",\n    CONSTRAINT ").append(currentConstraint)
+                        ddl.append(",\n    CONSTRAINT ").append(quoteId(currentConstraint))
                                 .append(" UNIQUE (").append(String.join(", ", columns)).append(")");
                         columns.clear();
                     }
                     currentConstraint = name;
-                    columns.add(rs.getString("COLUMN_NAME"));
+                    columns.add(quoteId(rs.getString("COLUMN_NAME")));
                 }
             }
         }
         if (currentConstraint != null) {
-            ddl.append(",\n    CONSTRAINT ").append(currentConstraint)
+            ddl.append(",\n    CONSTRAINT ").append(quoteId(currentConstraint))
                     .append(" UNIQUE (").append(String.join(", ", columns)).append(")");
         }
     }
@@ -222,8 +224,8 @@ public class As400DdlExtractor implements DdlExtractor {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    ddl.append("ALTER TABLE ").append(rs.getString("TABLE_NAME"))
-                            .append(" ADD CONSTRAINT ").append(rs.getString("CONSTRAINT_NAME").trim())
+                    ddl.append("ALTER TABLE ").append(quoteId(rs.getString("TABLE_NAME")))
+                            .append(" ADD CONSTRAINT ").append(quoteId(rs.getString("CONSTRAINT_NAME").trim()))
                             .append(" CHECK (").append(rs.getString("CHECK_CLAUSE").trim())
                             .append(");\n\n");
                 }
@@ -254,10 +256,10 @@ public class As400DdlExtractor implements DdlExtractor {
 
                     List<String> fkCols = getKeyColumns(connection, schema, fkName);
 
-                    ddl.append("ALTER TABLE ").append(childTable)
-                            .append(" ADD CONSTRAINT ").append(fkName)
+                    ddl.append("ALTER TABLE ").append(quoteId(childTable))
+                            .append(" ADD CONSTRAINT ").append(quoteId(fkName))
                             .append(" FOREIGN KEY (").append(String.join(", ", fkCols))
-                            .append(") REFERENCES ").append(parentTable)
+                            .append(") REFERENCES ").append(quoteId(parentTable))
                             .append(";\n\n");
                 }
             }
@@ -277,7 +279,7 @@ public class As400DdlExtractor implements DdlExtractor {
             ps.setString(2, constraintName);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    columns.add(rs.getString("COLUMN_NAME"));
+                    columns.add(quoteId(rs.getString("COLUMN_NAME")));
                 }
             }
         }
@@ -287,7 +289,8 @@ public class As400DdlExtractor implements DdlExtractor {
     private void extractIndexes(Connection connection, String schema, StringBuilder ddl) throws SQLException {
         String sql = """
                 SELECT i.INDEX_NAME, i.TABLE_NAME, i.IS_UNIQUE,
-                       COALESCE(CAST(k.KEY_EXPRESSION AS VARCHAR(2000)), k.COLUMN_NAME) AS COLUMN_NAME, k.ORDERING
+                       CAST(k.KEY_EXPRESSION AS VARCHAR(2000)) AS KEY_EXPRESSION,
+                       k.COLUMN_NAME, k.ORDERING
                 FROM QSYS2.SYSINDEXES i
                 JOIN QSYS2.SYSKEYS k ON i.INDEX_SCHEMA = k.INDEX_SCHEMA AND i.INDEX_NAME = k.INDEX_NAME
                 WHERE i.INDEX_SCHEMA = ?
@@ -316,7 +319,13 @@ public class As400DdlExtractor implements DdlExtractor {
                     currentIndex = indexName;
                     currentTable = rs.getString("TABLE_NAME");
                     currentUnique = rs.getString("IS_UNIQUE");
-                    String col = rs.getString("COLUMN_NAME");
+                    String expression = rs.getString("KEY_EXPRESSION");
+                    String col;
+                    if (expression != null) {
+                        col = expression;
+                    } else {
+                        col = quoteId(rs.getString("COLUMN_NAME"));
+                    }
                     String ordering = rs.getString("ORDERING");
                     if ("D".equals(ordering)) {
                         col += " DESC";
@@ -335,8 +344,8 @@ public class As400DdlExtractor implements DdlExtractor {
         if ("U".equals(isUnique) || "V".equals(isUnique)) {
             ddl.append("UNIQUE ");
         }
-        ddl.append("INDEX ").append(indexName)
-                .append(" ON ").append(tableName)
+        ddl.append("INDEX ").append(quoteId(indexName))
+                .append(" ON ").append(quoteId(tableName))
                 .append(" (").append(String.join(", ", columns)).append(");\n\n");
     }
 
@@ -356,7 +365,7 @@ public class As400DdlExtractor implements DdlExtractor {
                     if (definition != null) {
                         definition = definition.trim();
                         if (!definition.toUpperCase().startsWith("CREATE")) {
-                            ddl.append("CREATE VIEW ").append(name).append(" AS\n");
+                            ddl.append("CREATE VIEW ").append(quoteId(name)).append(" AS\n");
                         }
                         ddl.append(definition).append(";\n\n");
                     }

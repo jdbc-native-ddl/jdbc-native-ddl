@@ -28,7 +28,7 @@ jobs:
           restore-keys: nvd-db-
 
       - name: Build, test, and check vulnerabilities
-        run: mvn clean verify
+        run: mvn -B clean verify
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 

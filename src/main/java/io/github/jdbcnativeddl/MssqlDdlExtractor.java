@@ -61,9 +61,12 @@ public class MssqlDdlExtractor implements DdlExtractor {
 
     private void extractTables(Connection connection, String schema, StringBuilder ddl) throws SQLException {
         String tablesSql = """
-                SELECT t.name AS table_name, t.temporal_type
+                SELECT t.name AS table_name, t.temporal_type,
+                       ht.name AS history_table_name, hs.name AS history_schema_name
                 FROM sys.tables t
                 JOIN sys.schemas s ON t.schema_id = s.schema_id
+                LEFT JOIN sys.tables ht ON t.history_table_id = ht.object_id
+                LEFT JOIN sys.schemas hs ON ht.schema_id = hs.schema_id
                 WHERE s.name = ? AND t.is_ms_shipped = 0 AND t.temporal_type != 1
                 ORDER BY t.name
                 """;
@@ -72,7 +75,12 @@ public class MssqlDdlExtractor implements DdlExtractor {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    tables.add(new String[]{rs.getString("table_name"), String.valueOf(rs.getInt("temporal_type"))});
+                    tables.add(new String[]{
+                            rs.getString("table_name"),
+                            String.valueOf(rs.getInt("temporal_type")),
+                            rs.getString("history_schema_name"),
+                            rs.getString("history_table_name")
+                    });
                 }
             }
         }
@@ -80,6 +88,8 @@ public class MssqlDdlExtractor implements DdlExtractor {
         for (String[] table : tables) {
             String tableName = table[0];
             int temporalType = Integer.parseInt(table[1]);
+            String historySchema = table[2];
+            String historyTable = table[3];
 
             ddl.append("CREATE TABLE ").append(schema).append(".").append(tableName).append(" (\n");
             extractColumns(connection, schema, tableName, ddl);
@@ -92,7 +102,11 @@ public class MssqlDdlExtractor implements DdlExtractor {
             ddl.append("\n)");
 
             if (temporalType == 2) {
-                ddl.append("\nWITH (SYSTEM_VERSIONING = ON)");
+                ddl.append("\nWITH (SYSTEM_VERSIONING = ON");
+                if (historyTable != null) {
+                    ddl.append(" (HISTORY_TABLE = ").append(historySchema).append(".").append(historyTable).append(")");
+                }
+                ddl.append(")");
             }
 
             ddl.append(";\n\n");
@@ -103,6 +117,7 @@ public class MssqlDdlExtractor implements DdlExtractor {
         String sql = """
                 SELECT c.name, TYPE_NAME(c.user_type_id) AS type_name,
                        c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity,
+                       c.generated_always_type,
                        ic.seed_value, ic.increment_value,
                        cc.definition AS computed_def, cc.is_persisted,
                        dc.definition AS default_def
@@ -144,9 +159,16 @@ public class MssqlDdlExtractor implements DdlExtractor {
                                     .append(",").append(rs.getInt("increment_value")).append(")");
                         }
 
-                        String defaultDef = rs.getString("default_def");
-                        if (defaultDef != null) {
-                            ddl.append(" DEFAULT ").append(defaultDef);
+                        int generatedAlways = rs.getInt("generated_always_type");
+                        if (generatedAlways == 1) {
+                            ddl.append(" GENERATED ALWAYS AS ROW START");
+                        } else if (generatedAlways == 2) {
+                            ddl.append(" GENERATED ALWAYS AS ROW END");
+                        } else {
+                            String defaultDef = rs.getString("default_def");
+                            if (defaultDef != null) {
+                                ddl.append(" DEFAULT ").append(defaultDef);
+                            }
                         }
 
                         if (!rs.getBoolean("is_nullable")) {
@@ -290,7 +312,7 @@ public class MssqlDdlExtractor implements DdlExtractor {
                 JOIN sys.schemas s ON t.schema_id = s.schema_id
                 WHERE s.name = ? AND i.type > 0
                   AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
-                  AND t.is_ms_shipped = 0
+                  AND t.is_ms_shipped = 0 AND t.temporal_type != 1
                 ORDER BY t.name, i.name
                 """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -311,13 +333,23 @@ public class MssqlDdlExtractor implements DdlExtractor {
                         ddl.append("INDEX ");
                     }
 
-                    ddl.append(rs.getString("index_name"))
-                            .append(" ON ").append(schema).append(".").append(rs.getString("table_name"))
-                            .append(" (").append(rs.getString("key_columns")).append(")");
-
+                    String keyColumns = rs.getString("key_columns");
                     String includeCols = rs.getString("include_columns");
-                    if (includeCols != null) {
-                        ddl.append(" INCLUDE (").append(includeCols).append(")");
+
+                    ddl.append(rs.getString("index_name"))
+                            .append(" ON ").append(schema).append(".").append(rs.getString("table_name"));
+
+                    if (typeDesc.contains("COLUMNSTORE")) {
+                        // Columnstore indexes list all columns directly
+                        String cols = includeCols != null ? includeCols : keyColumns;
+                        if (cols != null) {
+                            ddl.append(" (").append(cols).append(")");
+                        }
+                    } else {
+                        ddl.append(" (").append(keyColumns).append(")");
+                        if (includeCols != null) {
+                            ddl.append(" INCLUDE (").append(includeCols).append(")");
+                        }
                     }
 
                     String filter = rs.getString("filter_definition");
