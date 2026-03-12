@@ -21,6 +21,8 @@ public class MssqlDdlExtractor implements DdlExtractor {
     public String extractDdl(Connection connection, String schema) throws SQLException {
         StringBuilder ddl = new StringBuilder();
 
+        ddl.append("CREATE SCHEMA ").append(schema).append(";\n\n");
+
         extractSequences(connection, schema, ddl);
         extractTables(connection, schema, ddl);
         extractCheckConstraints(connection, schema, ddl);

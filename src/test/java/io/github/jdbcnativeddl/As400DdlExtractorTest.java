@@ -283,8 +283,12 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
     @Test
     void expressionBasedIndex() {
         assertThat(ddl).contains("\"IDX_EMP_LOWER_NAME\"");
-        assertThat(ddl).contains("LOWER(FIRST_NAME)");
-        assertThat(ddl).doesNotContain("IXCOL00001");
+        assertThat(ddl).contains("\"IXCOL00001\" /* LOWER(FIRST_NAME) */");
+    }
+
+    @Test
+    void createSchema() {
+        assertThat(ddl).contains("CREATE SCHEMA \"TESTLIB\"");
     }
 
     @Test

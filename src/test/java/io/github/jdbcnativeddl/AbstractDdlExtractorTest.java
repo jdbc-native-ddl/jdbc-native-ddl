@@ -56,8 +56,9 @@ public abstract class AbstractDdlExtractorTest {
                                    String ddl) throws SQLException {
         String adjustedDdl = ddl.replace(originalSchema, roundtripSchema);
 
-        // Execute each statement in the roundtrip schema
+        // Execute each statement in the roundtrip schema (skip CREATE SCHEMA — already created by test)
         for (String stmt : splitStatements(adjustedDdl)) {
+            if (stmt.toUpperCase().startsWith("CREATE SCHEMA")) continue;
             try (Statement s = connection.createStatement()) {
                 s.execute(stmt);
             } catch (SQLException e) {

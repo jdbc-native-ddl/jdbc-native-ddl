@@ -24,6 +24,8 @@ public class As400DdlExtractor implements DdlExtractor {
         String upperSchema = schema.toUpperCase();
         StringBuilder ddl = new StringBuilder();
 
+        ddl.append("CREATE SCHEMA ").append(quoteId(upperSchema)).append(";\n\n");
+
         extractSequences(connection, upperSchema, ddl);
         extractTables(connection, upperSchema, ddl);
         extractCheckConstraints(connection, upperSchema, ddl);
@@ -320,11 +322,12 @@ public class As400DdlExtractor implements DdlExtractor {
                     currentTable = rs.getString("TABLE_NAME");
                     currentUnique = rs.getString("IS_UNIQUE");
                     String expression = rs.getString("KEY_EXPRESSION");
+                    String colName = rs.getString("COLUMN_NAME");
                     String col;
                     if (expression != null) {
-                        col = expression;
+                        col = quoteId(colName) + " /* " + expression + " */";
                     } else {
-                        col = quoteId(rs.getString("COLUMN_NAME"));
+                        col = quoteId(colName);
                     }
                     String ordering = rs.getString("ORDERING");
                     if ("D".equals(ordering)) {

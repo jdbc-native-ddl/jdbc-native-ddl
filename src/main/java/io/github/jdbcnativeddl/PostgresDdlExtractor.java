@@ -24,6 +24,8 @@ public class PostgresDdlExtractor implements DdlExtractor {
         StringBuilder ddl = new StringBuilder();
         String schemaLower = schema.toLowerCase();
 
+        ddl.append("CREATE SCHEMA ").append(schemaLower).append(";\n\n");
+
         extractCustomTypes(connection, schemaLower, ddl);
         extractSequences(connection, schemaLower, ddl);
         extractTables(connection, schemaLower, ddl);

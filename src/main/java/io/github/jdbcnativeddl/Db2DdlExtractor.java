@@ -24,6 +24,8 @@ public class Db2DdlExtractor implements DdlExtractor {
         String upperSchema = schema.toUpperCase();
         StringBuilder ddl = new StringBuilder();
 
+        ddl.append("CREATE SCHEMA ").append(upperSchema).append(";\n\n");
+
         extractSequences(connection, upperSchema, ddl);
         extractTables(connection, upperSchema, ddl);
         extractCheckConstraints(connection, upperSchema, ddl);
