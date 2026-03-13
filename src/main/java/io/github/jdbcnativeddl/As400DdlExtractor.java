@@ -289,38 +289,57 @@ public class As400DdlExtractor implements DdlExtractor {
     }
 
     private void extractIndexes(Connection connection, String schema, StringBuilder ddl) throws SQLException {
-        String sql = """
-                SELECT i.INDEX_NAME, i.TABLE_NAME, i.IS_UNIQUE,
-                       CAST(k.KEY_EXPRESSION AS VARCHAR(2000)) AS KEY_EXPRESSION,
-                       k.COLUMN_NAME, k.ORDERING
-                FROM QSYS2.SYSINDEXES i
-                JOIN QSYS2.SYSKEYS k ON i.INDEX_SCHEMA = k.INDEX_SCHEMA AND i.INDEX_NAME = k.INDEX_NAME
-                WHERE i.INDEX_SCHEMA = ?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM QSYS2.SYSCST c
-                      WHERE c.TABLE_SCHEMA = i.TABLE_SCHEMA AND c.TABLE_NAME = i.TABLE_NAME
-                        AND c.CONSTRAINT_NAME = i.INDEX_NAME
-                        AND c.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')
-                  )
-                ORDER BY i.TABLE_NAME, i.INDEX_NAME, k.ORDINAL_POSITION
+        String indexSql = """
+                SELECT INDEX_SCHEMA, INDEX_NAME, TABLE_NAME, IS_UNIQUE
+                FROM QSYS2.SYSPARTITIONINDEXES
+                WHERE TABLE_SCHEMA = ?
+                  AND INDEX_TYPE NOT IN ('PRIMARY KEY', 'UNIQUE', 'FOREIGN KEY')
+                ORDER BY TABLE_NAME, INDEX_NAME
                 """;
-        String currentIndex = null;
-        String currentTable = null;
-        String currentUnique = null;
-        List<String> columns = new ArrayList<>();
+        String syskeysSql = """
+                SELECT COLUMN_NAME, ORDERING, CAST(KEY_EXPRESSION AS VARCHAR(2000)) AS KEY_EXPRESSION
+                FROM QSYS2.SYSKEYS
+                WHERE INDEX_SCHEMA = ? AND INDEX_NAME = ?
+                ORDER BY ORDINAL_POSITION
+                """;
+        String qadbkfldSql = """
+                SELECT DBKFLD AS COLUMN_NAME, DBKORD AS ORDERING
+                FROM QSYS.QADBKFLD
+                WHERE DBXLIB = ? AND DBXFIL = ?
+                ORDER BY DBKPOS
+                """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = connection.prepareStatement(indexSql)) {
             ps.setString(1, schema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    String indexSchema = rs.getString("INDEX_SCHEMA");
                     String indexName = rs.getString("INDEX_NAME");
-                    if (currentIndex != null && !currentIndex.equals(indexName)) {
-                        appendIndex(ddl, currentIndex, currentTable, currentUnique, columns);
-                        columns.clear();
+                    String tableName = rs.getString("TABLE_NAME");
+                    String isUnique = rs.getString("IS_UNIQUE");
+
+                    List<String> columns = getIndexColumns(connection, syskeysSql, indexSchema, indexName);
+                    if (columns.isEmpty()) {
+                        columns = getDdsIndexColumns(connection, qadbkfldSql, indexSchema, indexName);
                     }
-                    currentIndex = indexName;
-                    currentTable = rs.getString("TABLE_NAME");
-                    currentUnique = rs.getString("IS_UNIQUE");
+                    if (!columns.isEmpty()) {
+                        if (!indexSchema.equals(schema)) {
+                            ddl.append("-- Source: ").append(indexSchema).append(".").append(indexName).append("\n");
+                        }
+                        appendIndex(ddl, indexName, tableName, isUnique, columns);
+                    }
+                }
+            }
+        }
+    }
+
+    private List<String> getIndexColumns(Connection connection, String sql, String indexSchema, String indexName) throws SQLException {
+        List<String> columns = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, indexSchema);
+            ps.setString(2, indexName);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     String expression = rs.getString("KEY_EXPRESSION");
                     String colName = rs.getString("COLUMN_NAME");
                     String col;
@@ -337,9 +356,27 @@ public class As400DdlExtractor implements DdlExtractor {
                 }
             }
         }
-        if (currentIndex != null) {
-            appendIndex(ddl, currentIndex, currentTable, currentUnique, columns);
+        return columns;
+    }
+
+    private List<String> getDdsIndexColumns(Connection connection, String sql, String indexLib, String indexFile) throws SQLException {
+        List<String> columns = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, indexLib);
+            ps.setString(2, indexFile);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String colName = rs.getString("COLUMN_NAME");
+                    String col = quoteId(colName);
+                    String ordering = rs.getString("ORDERING");
+                    if ("D".equals(ordering)) {
+                        col += " DESC";
+                    }
+                    columns.add(col);
+                }
+            }
         }
+        return columns;
     }
 
     private void appendIndex(StringBuilder ddl, String indexName, String tableName, String isUnique, List<String> columns) {

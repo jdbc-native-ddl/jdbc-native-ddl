@@ -121,10 +121,31 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
                 )""");
 
             stmt.execute("""
+                CREATE TABLE QSYS2.SYSPARTITIONINDEXES (
+                    INDEX_SCHEMA VARCHAR(128),
+                    INDEX_NAME VARCHAR(128),
+                    TABLE_SCHEMA VARCHAR(128),
+                    TABLE_NAME VARCHAR(128),
+                    INDEX_TYPE VARCHAR(20),
+                    IS_UNIQUE CHAR(1)
+                )""");
+
+            stmt.execute("""
                 CREATE TABLE QSYS2.SYSVIEWS (
                     TABLE_SCHEMA VARCHAR(128),
                     TABLE_NAME VARCHAR(128),
                     VIEW_DEFINITION VARCHAR(4000)
+                )""");
+
+            stmt.execute("CREATE SCHEMA QSYS");
+
+            stmt.execute("""
+                CREATE TABLE QSYS.QADBKFLD (
+                    DBXLIB VARCHAR(128),
+                    DBXFIL VARCHAR(128),
+                    DBKFLD VARCHAR(128),
+                    DBKPOS INT,
+                    DBKORD CHAR(1)
                 )""");
         }
     }
@@ -197,15 +218,25 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
             stmt.execute("INSERT INTO QSYS2.SYSKEYCST VALUES ('TESTLIB', 'FK_DEPT', 'DEPARTMENT_ID', 1)");
             stmt.execute("INSERT INTO QSYS2.SYSREFCST VALUES ('TESTLIB', 'FK_DEPT', 'TESTLIB', 'PK_DEPARTMENTS')");
 
-            // Index
+            // Index (SQL-created — present in both SYSPARTITIONINDEXES and SYSKEYS)
             stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'D')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'LAST_NAME', 1, 'A', NULL)");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'FIRST_NAME', 2, 'A', NULL)");
 
-            // Expression-based index
+            // Expression-based index (SQL-created — present in both SYSPARTITIONINDEXES and SYSKEYS)
             stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'D')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'IXCOL00001', 1, 'A', 'LOWER(FIRST_NAME)')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'LAST_NAME', 2, 'A', NULL)");
+
+            // DDS logical file index (only in SYSPARTITIONINDEXES + QADBKFLD, NOT in SYSINDEXES/SYSKEYS)
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'LF_DEPT_NAME', 'TESTLIB', 'DEPARTMENTS', 'LOGICAL', 'D')");
+            stmt.execute("INSERT INTO QSYS.QADBKFLD VALUES ('TESTLIB', 'LF_DEPT_NAME', 'NAME', 1, 'A')");
+
+            // Cross-library DDS index (index lives in OTHERLIB, table in TESTLIB)
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('OTHERLIB', 'LF_EMP_SALARY', 'TESTLIB', 'EMPLOYEES', 'LOGICAL', 'D')");
+            stmt.execute("INSERT INTO QSYS.QADBKFLD VALUES ('OTHERLIB', 'LF_EMP_SALARY', 'SALARY', 1, 'D')");
 
             // View
             stmt.execute("""
@@ -278,6 +309,17 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
     void index() {
         assertThat(ddl).contains("\"IDX_EMP_NAME\"");
         assertThat(ddl.toUpperCase()).contains("CREATE INDEX");
+    }
+
+    @Test
+    void ddsLogicalFileIndex() {
+        assertThat(ddl).contains("CREATE INDEX \"LF_DEPT_NAME\" ON \"DEPARTMENTS\" (\"NAME\")");
+    }
+
+    @Test
+    void crossLibraryIndexHasSourceComment() {
+        assertThat(ddl).contains("-- Source: OTHERLIB.LF_EMP_SALARY");
+        assertThat(ddl).contains("CREATE INDEX \"LF_EMP_SALARY\" ON \"EMPLOYEES\" (\"SALARY\" DESC)");
     }
 
     @Test
