@@ -290,7 +290,7 @@ public class As400DdlExtractor implements DdlExtractor {
 
     private void extractIndexes(Connection connection, String schema, StringBuilder ddl) throws SQLException {
         String indexSql = """
-                SELECT INDEX_SCHEMA, INDEX_NAME, TABLE_NAME, IS_UNIQUE
+                SELECT INDEX_SCHEMA, INDEX_NAME, TABLE_NAME, "UNIQUE"
                 FROM QSYS2.SYSPARTITIONINDEXES
                 WHERE TABLE_SCHEMA = ?
                   AND INDEX_TYPE NOT IN ('PRIMARY KEY', 'UNIQUE', 'FOREIGN KEY')
@@ -305,7 +305,7 @@ public class As400DdlExtractor implements DdlExtractor {
         String qadbkfldSql = """
                 SELECT DBKFLD AS COLUMN_NAME, DBKORD AS ORDERING
                 FROM QSYS.QADBKFLD
-                WHERE DBXLIB = ? AND DBXFIL = ?
+                WHERE DBKLIB = ? AND DBKFIL = ?
                 ORDER BY DBKPOS
                 """;
 
@@ -316,7 +316,7 @@ public class As400DdlExtractor implements DdlExtractor {
                     String indexSchema = rs.getString("INDEX_SCHEMA");
                     String indexName = rs.getString("INDEX_NAME");
                     String tableName = rs.getString("TABLE_NAME");
-                    String isUnique = rs.getString("IS_UNIQUE");
+                    String isUnique = rs.getString("UNIQUE");
 
                     List<String> columns = getIndexColumns(connection, syskeysSql, indexSchema, indexName);
                     if (columns.isEmpty()) {
@@ -381,7 +381,7 @@ public class As400DdlExtractor implements DdlExtractor {
 
     private void appendIndex(StringBuilder ddl, String indexName, String tableName, String isUnique, List<String> columns) {
         ddl.append("CREATE ");
-        if ("U".equals(isUnique) || "V".equals(isUnique)) {
+        if ("UNIQUE".equals(isUnique)) {
             ddl.append("UNIQUE ");
         }
         ddl.append("INDEX ").append(quoteId(indexName))

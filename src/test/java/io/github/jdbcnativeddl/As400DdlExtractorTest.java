@@ -127,7 +127,7 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
                     TABLE_SCHEMA VARCHAR(128),
                     TABLE_NAME VARCHAR(128),
                     INDEX_TYPE VARCHAR(20),
-                    IS_UNIQUE CHAR(1)
+                    "UNIQUE" VARCHAR(21)
                 )""");
 
             stmt.execute("""
@@ -141,8 +141,8 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
 
             stmt.execute("""
                 CREATE TABLE QSYS.QADBKFLD (
-                    DBXLIB VARCHAR(128),
-                    DBXFIL VARCHAR(128),
+                    DBKLIB VARCHAR(128),
+                    DBKFIL VARCHAR(128),
                     DBKFLD VARCHAR(128),
                     DBKPOS INT,
                     DBKORD CHAR(1)
@@ -220,22 +220,22 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
 
             // Index (SQL-created — present in both SYSPARTITIONINDEXES and SYSKEYS)
             stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
-            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'NON-UNIQUE')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'LAST_NAME', 1, 'A', NULL)");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_NAME', 'FIRST_NAME', 2, 'A', NULL)");
 
             // Expression-based index (SQL-created — present in both SYSPARTITIONINDEXES and SYSKEYS)
             stmt.execute("INSERT INTO QSYS2.SYSINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'D')");
-            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'TESTLIB', 'EMPLOYEES', 'INDEX', 'NON-UNIQUE')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'IXCOL00001', 1, 'A', 'LOWER(FIRST_NAME)')");
             stmt.execute("INSERT INTO QSYS2.SYSKEYS VALUES ('TESTLIB', 'IDX_EMP_LOWER_NAME', 'LAST_NAME', 2, 'A', NULL)");
 
             // DDS logical file index (only in SYSPARTITIONINDEXES + QADBKFLD, NOT in SYSINDEXES/SYSKEYS)
-            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'LF_DEPT_NAME', 'TESTLIB', 'DEPARTMENTS', 'LOGICAL', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('TESTLIB', 'LF_DEPT_NAME', 'TESTLIB', 'DEPARTMENTS', 'LOGICAL', 'NON-UNIQUE')");
             stmt.execute("INSERT INTO QSYS.QADBKFLD VALUES ('TESTLIB', 'LF_DEPT_NAME', 'NAME', 1, 'A')");
 
             // Cross-library DDS index (index lives in OTHERLIB, table in TESTLIB)
-            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('OTHERLIB', 'LF_EMP_SALARY', 'TESTLIB', 'EMPLOYEES', 'LOGICAL', 'D')");
+            stmt.execute("INSERT INTO QSYS2.SYSPARTITIONINDEXES VALUES ('OTHERLIB', 'LF_EMP_SALARY', 'TESTLIB', 'EMPLOYEES', 'LOGICAL', 'NON-UNIQUE')");
             stmt.execute("INSERT INTO QSYS.QADBKFLD VALUES ('OTHERLIB', 'LF_EMP_SALARY', 'SALARY', 1, 'D')");
 
             // View
