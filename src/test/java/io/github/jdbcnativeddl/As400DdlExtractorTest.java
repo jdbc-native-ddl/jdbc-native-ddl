@@ -66,6 +66,8 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
                     COLUMN_DEFAULT VARCHAR(256),
                     IS_IDENTITY VARCHAR(3),
                     IDENTITY_GENERATION VARCHAR(10),
+                    IDENTITY_START BIGINT,
+                    IDENTITY_INCREMENT BIGINT,
                     ORDINAL_POSITION INT
                 )""");
 
@@ -162,41 +164,18 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
             stmt.execute("INSERT INTO QSYS2.SYSTABLES VALUES ('TESTLIB', 'DEPARTMENTS', 'T')");
             stmt.execute("INSERT INTO QSYS2.SYSTABLES VALUES ('TESTLIB', 'EMPLOYEES', 'T')");
 
-            // Departments columns
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'DEPARTMENTS', 'ID', 'INTEGER', 4, 0, 'N', NULL, 'YES', 'ALWAYS', 1)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'DEPARTMENTS', 'NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, 2)
-                """);
+            // Departments columns — (schema, table, col, type, length, scale, nullable, default, is_identity, generation, identity_start, identity_increment, ordinal)
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'DEPARTMENTS', 'ID', 'INTEGER', 4, 0, 'N', NULL, 'YES', 'ALWAYS', 1, 1, 1)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'DEPARTMENTS', 'NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, NULL, NULL, 2)");
 
             // Employees columns
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'ID', 'INTEGER', 4, 0, 'N', NULL, 'NO', NULL, 1)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'FIRST_NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, 2)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'LAST_NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, 3)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'EMAIL', 'VARCHAR', 255, 0, 'N', NULL, 'NO', NULL, 4)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'SALARY', 'DECIMAL', 10, 2, 'Y', NULL, 'NO', NULL, 5)
-                """);
-            stmt.execute("""
-                INSERT INTO QSYS2.SYSCOLUMNS VALUES
-                ('TESTLIB', 'EMPLOYEES', 'DEPARTMENT_ID', 'INTEGER', 4, 0, 'Y', NULL, 'NO', NULL, 6)
-                """);
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'ID', 'INTEGER', 4, 0, 'N', NULL, 'NO', NULL, NULL, NULL, 1)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'FIRST_NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, NULL, NULL, 2)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'LAST_NAME', 'VARCHAR', 100, 0, 'N', NULL, 'NO', NULL, NULL, NULL, 3)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'EMAIL', 'VARCHAR', 255, 0, 'N', NULL, 'NO', NULL, NULL, NULL, 4)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'SALARY', 'DECIMAL', 10, 2, 'Y', NULL, 'NO', NULL, NULL, NULL, 5)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'DEPARTMENT_ID', 'INTEGER', 4, 0, 'Y', NULL, 'NO', NULL, NULL, NULL, 6)");
+            stmt.execute("INSERT INTO QSYS2.SYSCOLUMNS VALUES ('TESTLIB', 'EMPLOYEES', 'CREATED_AT', 'TIMESTAMP', 26, 6, 'N', NULL, 'NO', NULL, NULL, NULL, 7)");
 
             // PK constraints
             stmt.execute("INSERT INTO QSYS2.SYSCST VALUES ('TESTLIB', 'PK_DEPARTMENTS', 'TESTLIB', 'DEPARTMENTS', 'PRIMARY KEY')");
@@ -271,11 +250,12 @@ class As400DdlExtractorTest extends AbstractDdlExtractorTest {
     void columnTypes() {
         assertThat(ddl).contains("VARCHAR(100)");
         assertThat(ddl).contains("DECIMAL(10,2)");
+        assertThat(ddl).contains("TIMESTAMP(6)");
     }
 
     @Test
     void identityColumn() {
-        assertThat(ddl.toUpperCase()).contains("GENERATED ALWAYS AS IDENTITY");
+        assertThat(ddl.toUpperCase()).contains("GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1)");
     }
 
     @Test
