@@ -62,14 +62,14 @@ The casing of identifiers reflects what the database catalog actually stores. Mo
 <dependency>
     <groupId>io.github.jdbc-native-ddl</groupId>
     <artifactId>jdbc-native-ddl</artifactId>
-    <version>0.1.4</version>
+    <version>0.1.6</version>
 </dependency>
 ```
 
 ## Gradle
 
 ```groovy
-implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.4'
+implementation 'io.github.jdbc-native-ddl:jdbc-native-ddl:0.1.6'
 ```
 
 JDBC drivers are **not** included -- provide them in your application's classpath.
