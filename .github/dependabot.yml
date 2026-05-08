@@ -6,3 +6,4 @@ updates:
       interval: "weekly"
     auto:
       allow-dependency-updates: true
+      automerge: true
