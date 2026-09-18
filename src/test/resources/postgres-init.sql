@@ -65,3 +65,22 @@ CREATE MATERIALIZED VIEW ddl_test.dept_summary AS
     FROM ddl_test.departments d
     LEFT JOIN ddl_test.employees e ON d.id = e.department_id
     GROUP BY d.name;
+
+-- FK ordering
+CREATE TABLE ddl_test.z_fk_parent (id integer PRIMARY KEY, code integer, child_id integer);
+CREATE UNIQUE INDEX idx_parent_code ON ddl_test.z_fk_parent(code);
+CREATE TABLE ddl_test.a_fk_child (
+    id integer PRIMARY KEY,
+    parent_id integer,
+    parent_code integer,
+    self_id integer,
+    CONSTRAINT fk_later_parent FOREIGN KEY (parent_id) REFERENCES ddl_test.z_fk_parent(id)
+        ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT fk_unique_index FOREIGN KEY (parent_code) REFERENCES ddl_test.z_fk_parent(code),
+    CONSTRAINT fk_self FOREIGN KEY (self_id) REFERENCES ddl_test.a_fk_child(id)
+);
+ALTER TABLE ddl_test.z_fk_parent ADD CONSTRAINT fk_cycle
+    FOREIGN KEY (child_id) REFERENCES ddl_test.a_fk_child(id) NOT VALID;
+
+ALTER TABLE ddl_test.sales ADD CONSTRAINT fk_partition_parent
+    FOREIGN KEY (id) REFERENCES ddl_test.z_fk_parent(id);

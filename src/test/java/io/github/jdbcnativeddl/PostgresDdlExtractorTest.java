@@ -10,7 +10,12 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -103,6 +108,24 @@ class PostgresDdlExtractorTest extends AbstractDdlExtractorTest {
     }
 
     @Test
+    void foreignKeysFollowTablesAndUniqueIndexes() {
+        assertBefore("CREATE TABLE z_fk_parent", "ALTER TABLE a_fk_child ADD CONSTRAINT fk_later_parent");
+        assertBefore("CREATE UNIQUE INDEX idx_parent_code", "ALTER TABLE a_fk_child ADD CONSTRAINT fk_unique_index");
+        assertBefore("CREATE TABLE a_fk_child", "ALTER TABLE z_fk_parent ADD CONSTRAINT fk_cycle");
+        assertBefore("CREATE TABLE a_fk_child", "ALTER TABLE a_fk_child ADD CONSTRAINT fk_self");
+        assertThat(ddl).contains("ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED", "NOT VALID");
+        assertThat(ddl).containsOnlyOnce("ADD CONSTRAINT fk_partition_parent");
+        assertBefore("CREATE TABLE sales_2024", "ALTER TABLE sales ADD CONSTRAINT fk_partition_parent");
+    }
+
+    private void assertBefore(String prerequisite, String dependent) {
+        assertThat(ddl).contains(prerequisite, dependent);
+        assertThat(ddl.indexOf(prerequisite))
+                .as("%s must precede %s", prerequisite, dependent)
+                .isLessThan(ddl.indexOf(dependent));
+    }
+
+    @Test
     void roundtrip() throws Exception {
         try (Connection conn = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
@@ -111,6 +134,33 @@ class PostgresDdlExtractorTest extends AbstractDdlExtractorTest {
                 s.execute("SET search_path TO ddl_roundtrip");
             }
             assertRoundtrip(conn, new PostgresDdlExtractor(), "ddl_test", "ddl_roundtrip", ddl);
+            // Also verify that all FK definitions survive the roundtrip.
+            try (Statement s = conn.createStatement()) {
+                s.execute("SET search_path TO pg_catalog");
+            }
+            assertThat(foreignKeys(conn, "ddl_roundtrip"))
+                    .containsExactlyElementsOf(foreignKeys(conn, "ddl_test"));
         }
+    }
+
+    private List<String> foreignKeys(Connection conn, String schema) throws SQLException {
+        String sql = """
+                SELECT t.relname || ':' || c.conname || ':' || pg_get_constraintdef(c.oid) AS definition
+                FROM pg_constraint c
+                JOIN pg_class t ON c.conrelid = t.oid
+                JOIN pg_namespace n ON t.relnamespace = n.oid
+                WHERE n.nspname = ? AND c.contype = 'f'
+                ORDER BY definition
+                """;
+        List<String> objects = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    objects.add(rs.getString(1).replace(schema + ".", ""));
+                }
+            }
+        }
+        return objects;
     }
 }
