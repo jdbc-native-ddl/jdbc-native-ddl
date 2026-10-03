@@ -252,13 +252,14 @@ public class PostgresDdlExtractor implements DdlExtractor {
 
     private void extractForeignKeys(Connection connection, String schema, StringBuilder ddl) throws SQLException {
         // Inherited partition FKs are recreated automatically when adding the parent's FK.
+        // Preserve creation order so those generated names don't shadow earlier explicit FKs.
         String sql = """
                 SELECT t.relname, c.conname, pg_get_constraintdef(c.oid) AS def
                 FROM pg_constraint c
                 JOIN pg_class t ON c.conrelid = t.oid
                 JOIN pg_namespace n ON t.relnamespace = n.oid
                 WHERE n.nspname = ? AND c.contype = 'f' AND c.conparentid = 0
-                ORDER BY t.relname, c.conname
+                ORDER BY c.oid
                 """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, schema);

@@ -84,3 +84,24 @@ ALTER TABLE ddl_test.z_fk_parent ADD CONSTRAINT fk_cycle
 
 ALTER TABLE ddl_test.sales ADD CONSTRAINT fk_partition_parent
     FOREIGN KEY (id) REFERENCES ddl_test.z_fk_parent(id);
+
+-- A partition-local FK must precede a parent FK with the same name.
+CREATE TABLE ddl_test.a_fk_partitioned (id integer, target_id integer) PARTITION BY RANGE (id);
+CREATE TABLE ddl_test.z_fk_partition PARTITION OF ddl_test.a_fk_partitioned
+    FOR VALUES FROM (0) TO (100);
+ALTER TABLE ddl_test.z_fk_partition ADD CONSTRAINT fk_name_collision
+    FOREIGN KEY (target_id) REFERENCES ddl_test.z_fk_parent(id);
+ALTER TABLE ddl_test.a_fk_partitioned ADD CONSTRAINT fk_name_collision
+    FOREIGN KEY (target_id) REFERENCES ddl_test.departments(id);
+
+-- Referencing partitions also generates FK names on the referencing table.
+CREATE TABLE ddl_test.fk_partitioned_target (id integer PRIMARY KEY) PARTITION BY RANGE (id);
+CREATE TABLE ddl_test.fk_partitioned_target_1 PARTITION OF ddl_test.fk_partitioned_target
+    FOR VALUES FROM (0) TO (100);
+CREATE TABLE ddl_test.fk_partitioned_target_2 PARTITION OF ddl_test.fk_partitioned_target
+    FOR VALUES FROM (100) TO (200);
+CREATE TABLE ddl_test.fk_ref_child (target_id integer);
+ALTER TABLE ddl_test.fk_ref_child ADD CONSTRAINT fk_ref_child_target_id_fkey
+    FOREIGN KEY (target_id) REFERENCES ddl_test.z_fk_parent(id);
+ALTER TABLE ddl_test.fk_ref_child ADD CONSTRAINT aaa_fk_partitioned_target
+    FOREIGN KEY (target_id) REFERENCES ddl_test.fk_partitioned_target(id);

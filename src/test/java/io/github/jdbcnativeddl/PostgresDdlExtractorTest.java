@@ -118,6 +118,21 @@ class PostgresDdlExtractorTest extends AbstractDdlExtractorTest {
         assertBefore("CREATE TABLE sales_2024", "ALTER TABLE sales ADD CONSTRAINT fk_partition_parent");
     }
 
+    @Test
+    void partitionLocalForeignKeyPrecedesParentWithSameName() {
+        assertBefore("ALTER TABLE z_fk_partition ADD CONSTRAINT fk_name_collision",
+                "ALTER TABLE a_fk_partitioned ADD CONSTRAINT fk_name_collision");
+        assertThat(ddl).containsOnlyOnce("ALTER TABLE z_fk_partition ADD CONSTRAINT fk_name_collision");
+    }
+
+    @Test
+    void explicitForeignKeyPrecedesGeneratedReferencedPartitionNames() {
+        assertBefore("ALTER TABLE fk_ref_child ADD CONSTRAINT fk_ref_child_target_id_fkey ",
+                "ALTER TABLE fk_ref_child ADD CONSTRAINT aaa_fk_partitioned_target");
+        assertThat(ddl).doesNotContain("ADD CONSTRAINT fk_ref_child_target_id_fkey1",
+                "ADD CONSTRAINT fk_ref_child_target_id_fkey2");
+    }
+
     private void assertBefore(String prerequisite, String dependent) {
         assertThat(ddl).contains(prerequisite, dependent);
         assertThat(ddl.indexOf(prerequisite))
