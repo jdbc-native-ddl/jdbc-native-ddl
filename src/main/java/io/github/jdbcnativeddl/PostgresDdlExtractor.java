@@ -30,6 +30,7 @@ public class PostgresDdlExtractor implements DdlExtractor {
         extractSequences(connection, schemaLower, ddl);
         extractTables(connection, schemaLower, ddl);
         extractIndexes(connection, schemaLower, ddl);
+        extractForeignKeys(connection, schemaLower, ddl);
         extractViews(connection, schemaLower, ddl);
         extractMaterializedViews(connection, schemaLower, ddl);
 
@@ -232,9 +233,9 @@ public class PostgresDdlExtractor implements DdlExtractor {
                 FROM pg_constraint c
                 JOIN pg_class t ON c.conrelid = t.oid
                 JOIN pg_namespace n ON t.relnamespace = n.oid
-                WHERE n.nspname = ? AND t.relname = ?
+                WHERE n.nspname = ? AND t.relname = ? AND contype <> 'f'
                 ORDER BY
-                    CASE contype WHEN 'p' THEN 1 WHEN 'u' THEN 2 WHEN 'f' THEN 3 WHEN 'c' THEN 4 END,
+                    CASE contype WHEN 'p' THEN 1 WHEN 'u' THEN 2 WHEN 'c' THEN 3 END,
                     conname
                 """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -244,6 +245,29 @@ public class PostgresDdlExtractor implements DdlExtractor {
                 while (rs.next()) {
                     ddl.append(",\n    CONSTRAINT ").append(rs.getString("conname"))
                             .append(" ").append(rs.getString("def"));
+                }
+            }
+        }
+    }
+
+    private void extractForeignKeys(Connection connection, String schema, StringBuilder ddl) throws SQLException {
+        // Inherited partition FKs are recreated automatically when adding the parent's FK.
+        // Preserve creation order so those generated names don't shadow earlier explicit FKs.
+        String sql = """
+                SELECT t.relname, c.conname, pg_get_constraintdef(c.oid) AS def
+                FROM pg_constraint c
+                JOIN pg_class t ON c.conrelid = t.oid
+                JOIN pg_namespace n ON t.relnamespace = n.oid
+                WHERE n.nspname = ? AND c.contype = 'f' AND c.conparentid = 0
+                ORDER BY c.oid
+                """;
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ddl.append("ALTER TABLE ").append(rs.getString("relname"))
+                            .append(" ADD CONSTRAINT ").append(rs.getString("conname"))
+                            .append(" ").append(rs.getString("def")).append(";\n\n");
                 }
             }
         }
